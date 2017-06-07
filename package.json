@@ -1,0 +1,10 @@
+{
+  "name": "three-holographic",
+  "version": "0.0.1",
+  "description": "HoloJS support for three.js",
+  "main": "index.js",
+  "author": "Stuart Anderson",
+  "dependencies": {
+    "three": "^0.85.2"
+  }
+}
