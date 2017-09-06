@@ -1,5 +1,8 @@
-var THREE_HOLO = (function (exports,three) {
-'use strict';
+(function (global, factory) {
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
+	(factory((global.THREE_HOLO = {}),global.THREE));
+}(this, (function (exports,three) { 'use strict';
 
 for (let chunk in three.ShaderChunk) {
     three.ShaderChunk[chunk] = three.ShaderChunk[chunk].replace('transpose', 'transpose2');
@@ -7,6 +10,12 @@ for (let chunk in three.ShaderChunk) {
 
 class HolographicEffect {
     constructor (renderer) {
+        if (window.experimentalHolographic === true) {
+            console.log(`THREE_HOLO.HolographicEffect`);
+            console.log(`Auto Stereo Rendering: [${window.holographicSettings.autoStereoEnabled ? "On" : "Off"}]`);
+            console.log(`Image Stabilization: [${window.holographicSettings.imageStabilizationEnabled ? "On" : "Off"}]`);
+            console.log(`World Origin Relative Position: [${window.holographicSettings.worldOriginRelativePosition}]`);
+        }
         this.renderer = renderer;
         this._modelViewMatrix = [new three.Matrix4(), new three.Matrix4()];
         this._normalMatrix = [new three.Matrix3(), new three.Matrix3()];
@@ -30,7 +39,7 @@ class HolographicEffect {
         return function (program) {
             scope.renderer.context.bindAttribLocation(program, 1, 'aRenderTargetArrayIndex');
             glLinkProgram(program);
-        }
+        };
     }
     _makePatchedShaderSource () {
         let scope = this;
@@ -39,7 +48,7 @@ class HolographicEffect {
             if (source.indexOf('gl_Position') > 0) source = scope._patchVertexShader(source);
             else source = scope._patchFragmentShader(source);
             glShaderSource(shader, source);
-        }
+        };
     }
     _makePatchedDrawElementsInstancedANGLE (object) {
         let scope = this;
@@ -47,7 +56,7 @@ class HolographicEffect {
         return function (mode, count, type, offset, primcount) {
             scope._uploadUniforms(object.material.program);
             glDrawElementsInstancedANGLE(mode, count, type, offset, primcount);
-        }
+        };
     }
     _makePatchedDrawArraysInstancedANGLE (object) {
         let scope = this;
@@ -55,7 +64,7 @@ class HolographicEffect {
         return function (mode, first, count, primcount) {
             scope._uploadUniforms(object.material.program);
             glDrawArraysInstancedANGLE(mode, first, count, primcount);
-        }
+        };
     }
     _patchVertexShader (shader) {
         shader = shader.replace(/uniform mat4 viewMatrix;/, 'varying mat4 viewMatrix;');
@@ -188,12 +197,12 @@ class HolographicEffect {
             }
             else holographicAttributes[name] = attributes[name];
         }
-        for (var name in holographicAttributes) if (name !== 'aRenderTargetArrayIndex' && !attributes[name]) delete holographicAttributes[name];
+        for (name in holographicAttributes) if (name !== 'aRenderTargetArrayIndex' && !attributes[name]) delete holographicAttributes[name];
     }
     _updateBufferGeometry (holographicGeometry, geometry) {
         holographicGeometry.groups = geometry.groups;
         holographicGeometry.index = geometry.index;
-        holographicGeometry.maxInstancedCount = geometry.maxInstancedCount > 0 ? (geometry.maxInstancedCount * 2) : 2;
+        holographicGeometry.maxInstancedCount = geometry.maxInstancedCount > 0 ? geometry.maxInstancedCount * 2 : 2;
         holographicGeometry.boundingBox = geometry.boundingBox;
         holographicGeometry.boundingSphere = geometry.boundingSphere;
         holographicGeometry.drawRange = geometry.drawRange;
@@ -210,7 +219,7 @@ class HolographicEffect {
             if (holographicMaterial.isRawShaderMaterial) this._patchRawShaderMaterial(holographicMaterial);
         }
         else {
-            for (var name in material) {
+            for (name in material) {
                 if (name === 'vertexShader' || name === 'fragmentShader') continue;
                 holographicMaterial[name] = material[name];
             }
@@ -242,7 +251,7 @@ class HolographicEffect {
             onAfterRenderPatched: (...args) => this._onAfterRender(object, ...args),
             drawElementsInstancedANGLEPatched: this._makePatchedDrawElementsInstancedANGLE(object),
             drawArraysInstancedANGLEPatched: this._makePatchedDrawArraysInstancedANGLE(object)
-        }
+        };
     }
     _onBeforeRender (object, renderer, scene, camera, geometry, material, group) {
         let cached = object.__holographicCache;
@@ -306,12 +315,19 @@ class HolographicEffect {
         object.material = object.__holographicCache.material;
     }
     render (scene, camera, renderTarget, forceClear) {
-        if (this.enabled === false) return this.renderer.render(scene, camera, renderTarget, forceClear);
-        if (camera.update) camera.update();
-        scene.traverse(o => this._setupInstancing(o));
-        this.renderer.render(scene, camera, renderTarget, forceClear);
-        scene.traverse(o => this._teardownInstancing(o));
-    };
+        if (window.experimentalHolographic === true) {
+            if (!camera.isHolographicCamera) throw new Error("Camera must be an instance of HolographicCamera");
+            camera.update();
+        }
+        if (window.experimentalHolographic !== true || window.holographicSettings.autoStereoEnabled === true) {
+            this.renderer.render(scene, camera, renderTarget, forceClear);
+        }
+        else {
+            scene.traverse(o => this._setupInstancing(o));
+            this.renderer.render(scene, camera, renderTarget, forceClear);
+            scene.traverse(o => this._teardownInstancing(o));
+        }
+    }
 }
 
 class HolographicCamera extends three.Camera {
@@ -356,6 +372,6 @@ class HolographicCamera extends three.Camera {
 exports.HolographicEffect = HolographicEffect;
 exports.HolographicCamera = HolographicCamera;
 
-return exports;
+Object.defineProperty(exports, '__esModule', { value: true });
 
-}({},THREE));
+})));
