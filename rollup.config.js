@@ -1,3 +1,5 @@
+import cleanup from 'rollup-plugin-cleanup';
+
 export default {
     name: 'THREE_HOLO',
     input: 'index.js',
@@ -8,5 +10,8 @@ export default {
     output: {
         file: 'dist/three-holographic.js',
         format: 'iife'
-    }
+    },
+    plugins: [
+        cleanup()
+    ]
 }
